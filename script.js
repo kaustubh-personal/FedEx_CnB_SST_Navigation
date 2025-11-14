@@ -23,10 +23,26 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
                 this.classList.add('active');
     
-                // Power BI navigation
+                // Enhanced Power BI navigation
                 var pageName = this.dataset.pagename;
                 if (pageName) {
-                    window.parent.postMessage({ action: 'switchPage', page: pageName }, '*');
+                    console.log('Navigating to page:', pageName);
+                    
+                    // Send message to Power BI
+                    window.parent.postMessage({
+                        action: 'switchPage',
+                        page: pageName,
+                        type: 'navigation'
+                    }, '*');
+                    
+                    // Alternative method: Try to use Power BI JavaScript API
+                    try {
+                        if (window.parent && window.parent.powerbi) {
+                            window.parent.powerbi.navigateToPage(pageName);
+                        }
+                    } catch (error) {
+                        console.log('Power BI API not available:', error);
+                    }
                 }
             }
         });

@@ -7,6 +7,26 @@ document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.sidebar-menu li').forEach(function(li) {
         li.classList.remove('open');
     });
+    
+    // Check for selected page from URL or localStorage
+    var urlParams = new URLSearchParams(window.location.search);
+    var selectedPage = urlParams.get('page') || localStorage.getItem('selectedPage');
+    
+    if (selectedPage) {
+        console.log('Restoring selected page:', selectedPage);
+        // Highlight the selected page
+        document.querySelectorAll('.sidebar-menu a').forEach(function(a) {
+            if (a.dataset.pagename === selectedPage) {
+                a.classList.add('active');
+                // Also expand parent menus
+                var parent = a.parentElement;
+                while (parent && parent.tagName === 'LI') {
+                    parent.classList.add('open');
+                    parent = parent.parentElement.parentElement;
+                }
+            }
+        });
+    }
 
     // Handle collapse/expand
     document.querySelectorAll('.sidebar-menu li > a').forEach(function(link) {
@@ -28,14 +48,34 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (pageName) {
                     console.log('Navigating to page:', pageName);
                     
-                    // Send message to Power BI
+                    // Method 1: Send message to Power BI (may not work in iframe)
                     window.parent.postMessage({
                         action: 'switchPage',
                         page: pageName,
                         type: 'navigation'
                     }, '*');
                     
-                    // Alternative method: Try to use Power BI JavaScript API
+                    // Method 2: Use URL parameters for Power BI Actions
+                    try {
+                        var currentUrl = window.location.href;
+                        var baseUrl = currentUrl.split('?')[0];
+                        var newUrl = baseUrl + '?page=' + encodeURIComponent(pageName) + '&timestamp=' + Date.now();
+                        
+                        // Update URL without refresh (for tracking)
+                        if (window.history && window.history.pushState) {
+                            window.history.pushState({page: pageName}, '', newUrl);
+                        }
+                        
+                        console.log('Updated URL for Power BI Action:', newUrl);
+                        
+                        // Store selected page in localStorage for persistence
+                        localStorage.setItem('selectedPage', pageName);
+                        
+                    } catch (error) {
+                        console.log('URL update failed:', error);
+                    }
+                    
+                    // Method 3: Try Power BI API (fallback)
                     try {
                         if (window.parent && window.parent.powerbi) {
                             window.parent.powerbi.navigateToPage(pageName);

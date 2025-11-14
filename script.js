@@ -1,14 +1,31 @@
 document.addEventListener('DOMContentLoaded', function () {
     console.log('Navigation script loaded in iframe context');
     
-    // Start with all menus collapsed for better user control
-    // Users can click on "Global C&B" to see the 3 main sections
-    // and click on "Go-Fast Now (FY26)" to see the 6 subsections
+    // Force immediate style application for Power BI iframe
+    function forceStyleUpdate() {
+        document.querySelectorAll('.sidebar-menu ul').forEach(function(ul) {
+            var parent = ul.parentElement;
+            if (parent.classList.contains('open')) {
+                ul.style.display = 'block';
+                ul.style.visibility = 'visible';
+                ul.style.opacity = '1';
+                ul.style.maxHeight = 'none';
+            } else {
+                ul.style.display = 'none';
+                ul.style.visibility = 'hidden';
+                ul.style.opacity = '0';
+                ul.style.maxHeight = '0';
+            }
+        });
+    }
     
-    // Ensure all menus start collapsed by removing any 'open' class
+    // Start with all menus collapsed for better user control
     document.querySelectorAll('.sidebar-menu li').forEach(function(li) {
         li.classList.remove('open');
     });
+    
+    // Force initial style application
+    forceStyleUpdate();
     
     // Check for selected page from URL or localStorage
     var urlParams = new URLSearchParams(window.location.search);
@@ -16,11 +33,10 @@ document.addEventListener('DOMContentLoaded', function () {
     
     if (selectedPage) {
         console.log('Restoring selected page:', selectedPage);
-        // Highlight the selected page
         document.querySelectorAll('.sidebar-menu a').forEach(function(a) {
             if (a.dataset.pagename === selectedPage) {
                 a.classList.add('active');
-                // Also expand parent menus
+                // Expand parent menus
                 var parent = a.parentElement;
                 while (parent && parent.tagName === 'LI') {
                     parent.classList.add('open');
@@ -28,42 +44,66 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
         });
+        forceStyleUpdate();
     }
 
-    // Handle collapse/expand with iframe compatibility
+    // Handle collapse/expand with POWER BI IFRAME COMPATIBILITY
     document.querySelectorAll('.sidebar-menu li > a').forEach(function(link) {
         link.addEventListener('click', function(e) {
-            console.log('Link clicked:', this.textContent);
+            console.log('Link clicked in Power BI iframe:', this.textContent);
             
-            // Always prevent default to avoid navigation issues in iframe
             e.preventDefault();
             e.stopPropagation();
+            e.stopImmediatePropagation();
             
             let parentLi = this.parentElement;
             let hasSubMenu = parentLi.querySelector('ul');
             
-            console.log('Has submenu:', !!hasSubMenu);
+            console.log('Has submenu:', !!hasSubMenu, 'Parent element:', parentLi);
             
             if (hasSubMenu) {
-                // This is a parent menu item - toggle expand/collapse
-                console.log('Toggling submenu for:', this.textContent.trim());
+                console.log('Processing submenu toggle for:', this.textContent.trim());
                 
-                // Force toggle the open class
-                if (parentLi.classList.contains('open')) {
+                // Force toggle with multiple methods for iframe compatibility
+                var isCurrentlyOpen = parentLi.classList.contains('open');
+                
+                if (isCurrentlyOpen) {
                     parentLi.classList.remove('open');
-                    console.log('Collapsed menu');
+                    console.log('Removing open class');
                 } else {
                     parentLi.classList.add('open');
-                    console.log('Expanded menu');
+                    console.log('Adding open class');
                 }
                 
-                // Force style update for iframe compatibility
-                setTimeout(function() {
-                    parentLi.style.display = parentLi.style.display === 'none' ? 'block' : parentLi.style.display;
-                }, 10);
+                // FORCE STYLE UPDATE IMMEDIATELY
+                var submenu = parentLi.querySelector('ul');
+                if (submenu) {
+                    if (parentLi.classList.contains('open')) {
+                        // Force show
+                        submenu.style.display = 'block';
+                        submenu.style.visibility = 'visible';
+                        submenu.style.opacity = '1';
+                        submenu.style.maxHeight = 'none';
+                        submenu.style.overflow = 'visible';
+                        console.log('FORCED submenu to show');
+                    } else {
+                        // Force hide
+                        submenu.style.display = 'none';
+                        submenu.style.visibility = 'hidden';
+                        submenu.style.opacity = '0';
+                        submenu.style.maxHeight = '0';
+                        submenu.style.overflow = 'hidden';
+                        console.log('FORCED submenu to hide');
+                    }
+                }
+                
+                // Multiple forced updates for stubborn iframe
+                setTimeout(forceStyleUpdate, 10);
+                setTimeout(forceStyleUpdate, 50);
+                setTimeout(forceStyleUpdate, 100);
                 
             } else {
-                // This is a leaf menu item - handle navigation
+                // Navigation item
                 console.log('Navigation item clicked:', this.textContent.trim());
                 
                 // Set active state
@@ -72,12 +112,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
                 this.classList.add('active');
     
-                // Enhanced Power BI navigation
+                // Power BI navigation
                 var pageName = this.dataset.pagename;
                 if (pageName) {
                     console.log('Navigating to page:', pageName);
                     
-                    // Method 1: Send message to Power BI parent window
                     try {
                         window.parent.postMessage({
                             action: 'switchPage',
@@ -90,40 +129,16 @@ document.addEventListener('DOMContentLoaded', function () {
                         console.log('Parent messaging failed:', error);
                     }
                     
-                    // Method 2: Use URL parameters for Power BI Actions
                     try {
-                        var currentUrl = window.location.href;
-                        var baseUrl = currentUrl.split('?')[0];
-                        var newUrl = baseUrl + '?page=' + encodeURIComponent(pageName) + '&timestamp=' + Date.now();
-                        
-                        // Update URL without refresh (for tracking)
-                        if (window.history && window.history.pushState) {
-                            window.history.pushState({page: pageName}, '', newUrl);
-                        }
-                        
-                        console.log('Updated URL for Power BI Action:', newUrl);
-                        
-                        // Store selected page in localStorage for persistence
                         localStorage.setItem('selectedPage', pageName);
-                        
                     } catch (error) {
-                        console.log('URL update failed:', error);
-                    }
-                    
-                    // Method 3: Try Power BI API (fallback)
-                    try {
-                        if (window.parent && window.parent.powerbi) {
-                            window.parent.powerbi.navigateToPage(pageName);
-                        }
-                    } catch (error) {
-                        console.log('Power BI API not available:', error);
+                        console.log('localStorage failed:', error);
                     }
                 }
             }
             
-            // Return false to ensure no default action
             return false;
-        }, true); // Use capture phase for iframe compatibility
+        }, true)
     });
 
     // Set tooltips dynamically
@@ -159,9 +174,36 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Force CSS re-evaluation for iframe compatibility
+    // POWER BI IFRAME FORCE REFRESH - Multiple attempts
     setTimeout(function() {
+        console.log('Force refresh #1');
+        forceStyleUpdate();
         document.body.style.display = 'block';
-        console.log('Forced style refresh for iframe');
     }, 100);
+    
+    setTimeout(function() {
+        console.log('Force refresh #2');
+        forceStyleUpdate();
+    }, 500);
+    
+    setTimeout(function() {
+        console.log('Force refresh #3');
+        forceStyleUpdate();
+    }, 1000);
+    
+    // Watch for class changes and force style updates
+    if (window.MutationObserver) {
+        var observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                    console.log('Class change detected, forcing style update');
+                    forceStyleUpdate();
+                }
+            });
+        });
+        
+        document.querySelectorAll('.sidebar-menu li').forEach(function(li) {
+            observer.observe(li, { attributes: true, attributeFilter: ['class'] });
+        });
+    }
 });
